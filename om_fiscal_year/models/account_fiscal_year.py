@@ -46,3 +46,11 @@ class AccountFiscalYear(models.Model):
             if self.search_count(domain) > 0:
                 raise ValidationError(_('You can not have an overlap between two fiscal years, '
                                         'please correct the start and/or end dates of your fiscal years.'))
+
+    @api.model
+    def _get_fiscal_year(self, company, date_from, date_to):
+        return self.search([
+            ('company_id', '=', company.id),
+            ('date_from', '<=', date_from),
+            ('date_to', '>=', date_to),
+        ], limit=1)
