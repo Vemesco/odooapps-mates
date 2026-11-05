@@ -307,6 +307,16 @@ msgid "Assign a Responsible"
 msgstr "Asignar un responsable"
 
 #. module: om_account_followup
+#: model:ir.model.fields,help:om_account_followup.field_followup_followup__auto_send_user_id
+msgid "Automatic follow-ups are processed as this user: the emails are sent from their address and signature, and the sending time uses their time zone. Requires accounting rights."
+msgstr "Los seguimientos automáticos se procesan como este usuario: los correos se envían desde su dirección y con su firma, y la hora de envío usa su zona horaria. Requiere permisos de contabilidad."
+
+#. module: om_account_followup
+#: model_terms:ir.ui.view,arch_db:om_account_followup.view_om_account_followup_followup_form
+msgid "Automatic Sending"
+msgstr "Envío automático"
+
+#. module: om_account_followup
 #: model:ir.model.fields,field_description:om_account_followup.field_followup_stat__balance
 #: model:ir.model.fields,field_description:om_account_followup.field_followup_stat_by_partner__balance
 msgid "Balance"
@@ -625,6 +635,11 @@ msgid " email(s) should have been sent, but "
 msgstr " correo(s) debían enviarse, pero "
 
 #. module: om_account_followup
+#: model:ir.model.fields,help:om_account_followup.field_followup_followup__auto_send_email
+msgid "Every day at the sending time, process the follow-ups like 'Send Letters and Emails' does: advance follow-up levels, send the follow-up emails and assign manual actions. Letters are not printed automatically."
+msgstr "Todos los días a la hora de envío, procesa los seguimientos igual que 'Enviar cartas y correos': avanza los niveles de seguimiento, envía los correos de seguimiento y asigna las acciones manuales. Las cartas no se imprimen automáticamente."
+
+#. module: om_account_followup
 #: model:ir.model.fields,help:om_account_followup.field_account_bank_statement_line__followup_blocked
 #: model:ir.model.fields,help:om_account_followup.field_account_move__followup_blocked
 msgid "Exclude this entry's receivable items from payment follow-ups (reminder emails, letters and amounts due)."
@@ -733,6 +748,11 @@ msgid "Follow-up Steps"
 msgstr "Pasos de seguimiento"
 
 #. module: om_account_followup
+#: model:ir.actions.server,name:om_account_followup.ir_cron_followup_auto_send_ir_actions_server
+msgid "Follow-up: send follow-up emails automatically"
+msgstr "Seguimiento: enviar correos de seguimiento automáticamente"
+
+#. module: om_account_followup
 #: model:ir.ui.menu,name:om_account_followup.menu_finance_followup
 msgid "Follow-Ups"
 msgstr "Seguimientos"
@@ -834,6 +854,11 @@ msgstr "Recordatorio de facturas"
 #: model_terms:ir.ui.view,arch_db:om_account_followup.view_move_line_reconcile_tree
 msgid "Journal Items to Reconcile"
 msgstr "Apuntes contables por conciliar"
+
+#. module: om_account_followup
+#: model:ir.model.fields,field_description:om_account_followup.field_followup_followup__auto_send_last_date
+msgid "Last Automatic Sending"
+msgstr "Último envío automático"
 
 #. module: om_account_followup
 #: model:ir.model.fields,field_description:om_account_followup.field_followup_stat__date_move_last
@@ -1120,6 +1145,11 @@ msgid "Send an Email"
 msgstr "Enviar un correo"
 
 #. module: om_account_followup
+#: model:ir.model.fields,field_description:om_account_followup.field_followup_followup__auto_send_user_id
+msgid "Send As"
+msgstr "Enviar como"
+
+#. module: om_account_followup
 #: model:ir.model.fields,field_description:om_account_followup.field_followup_print__email_conf
 msgid "Send Email Confirmation"
 msgstr "Enviar confirmación por correo"
@@ -1133,6 +1163,11 @@ msgstr "Enviar correo en el idioma del contacto"
 #: model_terms:ir.ui.view,arch_db:om_account_followup.view_om_account_followup_print
 msgid "Send emails and generate letters"
 msgstr "Enviar correos y generar cartas"
+
+#. module: om_account_followup
+#: model:ir.model.fields,field_description:om_account_followup.field_followup_followup__auto_send_email
+msgid "Send Emails Automatically"
+msgstr "Enviar correos automáticamente"
 
 #. module: om_account_followup
 #: model:ir.actions.act_window,name:om_account_followup.action_om_account_followup_print
@@ -1159,6 +1194,11 @@ msgstr "Enviar cartas y correos: resumen de acciones"
 #: model_terms:ir.ui.view,arch_db:om_account_followup.view_partner_inherit_followup_form
 msgid "Send Overdue Email"
 msgstr "Enviar correo de vencimiento"
+
+#. module: om_account_followup
+#: model:ir.model.fields,field_description:om_account_followup.field_followup_followup__auto_send_time
+msgid "Sending Time"
+msgstr "Hora de envío"
 
 #. module: om_account_followup
 #: model:ir.model.fields,field_description:om_account_followup.field_followup_line__sequence
@@ -1218,6 +1258,12 @@ msgstr "El contacto no tiene movimientos contables para imprimir en el informe d
 
 #. module: om_account_followup
 #. odoo-python
+#: code:addons/om_account_followup/models/followup.py:0
+msgid "The sending time must be between 00:00 and 23:59."
+msgstr "La hora de envío debe estar entre 00:00 y 23:59."
+
+#. module: om_account_followup
+#. odoo-python
 #: code:addons/om_account_followup/models/partner.py:0
 msgid "There is no followup plan defined for the current company."
 msgstr "No hay un plan de seguimiento definido para la compañía actual."
@@ -1251,6 +1297,11 @@ msgstr "Esta es la próxima acción a realizar. Se asigna automáticamente cuand
 #: model:ir.model.fields,help:om_account_followup.field_res_users__payment_next_action_date
 msgid "This is when the manual follow-up is needed. The date will be set to the current date when the partner gets a follow-up level that requires a manual action. Can be practical to set manually e.g. to see if he keeps his promises."
 msgstr "Fecha en la que se requiere el seguimiento manual. Se asigna la fecha actual cuando el contacto alcanza un nivel de seguimiento que requiere una acción manual. Puede ser útil establecerla manualmente, p. ej. para verificar si cumple sus promesas."
+
+#. module: om_account_followup
+#: model:ir.model.fields,help:om_account_followup.field_followup_followup__auto_send_time
+msgid "Time of day (in the time zone of the 'Send As' user) after which the automatic follow-up emails are sent."
+msgstr "Hora del día (en la zona horaria del usuario 'Enviar como') a partir de la cual se envían los correos de seguimiento automáticos."
 
 #. module: om_account_followup
 #: model_terms:ir.ui.view,arch_db:om_account_followup.view_om_account_followup_followup_form

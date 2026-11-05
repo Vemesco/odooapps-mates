@@ -33,7 +33,7 @@ class FollowupPrint(models.TransientModel):
                                  related='followup_id.company_id')
     email_conf = fields.Boolean('Send Email Confirmation')
     email_subject = fields.Char('Email Subject', size=64,
-                                default=lambda *a: _('Invoices Reminder'))
+                                default=lambda self: self.env._('Invoices Reminder'))
     partner_lang = fields.Boolean(
         'Send Email in Partner Language', default=True,
         help='Do not change message text, if you want to send email in '
@@ -67,7 +67,9 @@ class FollowupPrint(models.TransientModel):
             if partner.max_followup_id.send_email:
                 nbunknownmails += partner.partner_id.do_partner_mail()
                 nbmails += 1
-            if partner.max_followup_id.send_letter:
+            # letters cannot be printed by the automatic (cron) sending
+            if partner.max_followup_id.send_letter and \
+                    not self.env.context.get('followup_auto'):
                 partner_ids_to_print.append(partner.id)
                 nbprints += 1
                 followup_without_lit = \
