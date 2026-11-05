@@ -174,12 +174,15 @@ class FollowupPrint(models.TransientModel):
         data = self
         company_id = data.company_id.id
         context = self.env.context
+        # raw SQL below: write pending ORM changes first
+        self.env['account.move.line'].flush_model()
+        self.env['followup.line'].flush_model()
         self._cr.execute(
             '''SELECT
                     l.partner_id,
                     l.followup_line_id,
                     l.date_maturity,
-                    l.date, l.id
+                    l.date, l.id, l.followup_date
                 FROM account_move_line AS l
                 LEFT JOIN account_account AS a
                 ON (l.account_id=a.id)
@@ -207,14 +210,17 @@ class FollowupPrint(models.TransientModel):
         )
 
         # levels of this plan, by increasing delay
-        levels = [(r['delay'], r['id']) for r in self._cr.dictfetchall()]
+        level_rows = self._cr.dictfetchall()
+        levels = [(r['delay'], r['id']) for r in level_rows]
         level_delay = {lid: d for d, lid in levels}
+        level_repeat = {r['id']: r.get('repeat_interval') or 0
+                        for r in level_rows}
 
         partner_list = []
         to_update = {}
 
-        for partner_id, followup_line_id, date_maturity, date, id in \
-                move_lines:
+        for partner_id, followup_line_id, date_maturity, date, id, \
+                followup_date in move_lines:
             if not partner_id:
                 continue
             if followup_line_id and followup_line_id not in level_delay:
@@ -232,7 +238,13 @@ class FollowupPrint(models.TransientModel):
             target = reached[-1]
             if followup_line_id and \
                     level_delay[target] <= level_delay[followup_line_id]:
-                continue
+                # no higher level reached: repeat the current level if it is
+                # set to repeat and the interval has passed since last time
+                repeat = level_repeat.get(followup_line_id)
+                if not (repeat and followup_date and
+                        (current_date - followup_date).days >= repeat):
+                    continue
+                target = followup_line_id
             stat_line_id = partner_id * 10000 + company_id
             if stat_line_id not in partner_list:
                 partner_list.append(stat_line_id)

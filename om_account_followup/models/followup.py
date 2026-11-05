@@ -149,6 +149,19 @@ Best Regards,
                                                    string='Assign a Responsible', ondelete='set null')
     email_template_id = fields.Many2one('mail.template', 'Email Template',
                                         ondelete='set null')
+    repeat_interval = fields.Integer(
+        'Repeat Every (days)', default=0,
+        help="When an invoice is at this level and no higher level is "
+             "reached, run this level again (email and manual action) every "
+             "this many days while it stays unpaid. 0 = do not repeat. "
+             "Usually set on the last level.")
+
+    @api.constrains('repeat_interval')
+    def _check_repeat_interval(self):
+        for line in self:
+            if line.repeat_interval < 0:
+                raise ValidationError(
+                    _("The repeat interval cannot be negative."))
 
     _sql_constraints = [('days_uniq', 'unique(followup_id, delay)',
                          'Days of the follow-up levels must be different')]

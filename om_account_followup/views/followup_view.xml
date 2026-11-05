@@ -12,6 +12,7 @@
                     <field name="send_email"/>
                     <field name="send_letter"/>
                     <field name="manual_action"/>
+                    <field name="repeat_interval" optional="show"/>
                 </list>
             </field>
         </record>
@@ -41,6 +42,11 @@
                     <div>
                         <field name="send_letter" class="oe_inline"/>
                         <label for="send_letter"/>
+                    </div>
+                    <div>
+                        Repeat every
+                        <field name="repeat_interval" class="oe_inline"/>
+                        days while the invoice stays unpaid (0 = no repeat)
                     </div>
 
                     <group string="Manual Action" invisible="not manual_action">

@@ -438,6 +438,11 @@ msgid "days overdue, do the following actions:"
 msgstr "días de vencimiento, realizar las siguientes acciones:"
 
 #. module: om_account_followup
+#: model_terms:ir.ui.view,arch_db:om_account_followup.view_om_account_followup_followup_line_form
+msgid "days while the invoice stays unpaid (0 = no repeat)"
+msgstr "días mientras la factura siga sin pagarse (0 = no repetir)"
+
+#. module: om_account_followup
 #: model:followup.line,description:om_account_followup.demo_followup_line3
 msgid ""
 "\n"
@@ -1132,6 +1137,16 @@ msgid "Reference"
 msgstr "Referencia"
 
 #. module: om_account_followup
+#: model_terms:ir.ui.view,arch_db:om_account_followup.view_om_account_followup_followup_line_form
+msgid "Repeat every"
+msgstr "Repetir cada"
+
+#. module: om_account_followup
+#: model:ir.model.fields,field_description:om_account_followup.field_followup_line__repeat_interval
+msgid "Repeat Every (days)"
+msgstr "Repetir cada (días)"
+
+#. module: om_account_followup
 #: model:ir.model,name:om_account_followup.model_report_om_account_followup_report_followup
 msgid "Report Followup"
 msgstr "Informe de seguimiento"
@@ -1282,6 +1297,12 @@ msgstr "El contacto no tiene movimientos contables para imprimir en el informe d
 #. module: om_account_followup
 #. odoo-python
 #: code:addons/om_account_followup/models/followup.py:0
+msgid "The repeat interval cannot be negative."
+msgstr "El intervalo de repetición no puede ser negativo."
+
+#. module: om_account_followup
+#. odoo-python
+#: code:addons/om_account_followup/models/followup.py:0
 msgid "The sending time must be between 00:00 and 23:59."
 msgstr "La hora de envío debe estar entre 00:00 y 23:59."
 
@@ -1387,6 +1408,11 @@ msgstr "Búsqueda no soportada en Sin seguimiento: %s %s"
 #: model:mail.template,name:om_account_followup.email_template_om_account_followup_level2
 msgid "Urging payment follow-up reminder email"
 msgstr "Recordatorio de pago urgente"
+
+#. module: om_account_followup
+#: model:ir.model.fields,help:om_account_followup.field_followup_line__repeat_interval
+msgid "When an invoice is at this level and no higher level is reached, run this level again (email and manual action) every this many days while it stays unpaid. 0 = do not repeat. Usually set on the last level."
+msgstr "Cuando una factura está en este nivel y no alcanza un nivel superior, se vuelve a ejecutar este nivel (correo y acción manual) cada este número de días mientras siga sin pagarse. 0 = no repetir. Normalmente se configura en el último nivel."
 
 #. module: om_account_followup
 #: model:ir.model.fields,help:om_account_followup.field_followup_line__send_letter

@@ -69,10 +69,14 @@ class ResPartner(models.Model):
     def do_partner_manual_action(self, partner_ids):
         for partner in self.browse(partner_ids):
             followup_without_lit = partner.latest_followup_level_id_without_lit
-            if partner.payment_next_action:
+            note = followup_without_lit.manual_action_note or ''
+            if partner.payment_next_action and \
+                    note.strip() in partner.payment_next_action:
+                # same action still pending (e.g. a repeated level)
+                action_text = partner.payment_next_action
+            elif partner.payment_next_action:
                 action_text = \
-                    (partner.payment_next_action or '') + "\n" + \
-                    (followup_without_lit.manual_action_note or '')
+                    (partner.payment_next_action or '') + "\n" + note
             else:
                 action_text = followup_without_lit.manual_action_note or ''
 
