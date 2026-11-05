@@ -3,6 +3,7 @@ from lxml import etree
 from odoo import api, fields, models, _
 from datetime import datetime
 from odoo.exceptions import ValidationError
+from odoo.tools import email_split
 from odoo.tools.misc import formatLang, format_date
 
 from .account_move import FOLLOWUP_ACTIVE_SQL
@@ -100,33 +101,49 @@ class ResPartner(models.Model):
             'om_account_followup.action_report_followup').report_action(
             self, data=datas)
 
+    def _get_followup_email_addresses(self):
+        """Addresses a follow-up email for this contact goes to: the contact
+        and its company, the e-invoicing email (if the e-invoicing module
+        provides one), the invoice addresses and the additional follow-up
+        recipients. Duplicates are removed."""
+        self.ensure_one()
+        commercial = self.commercial_partner_id
+        raw = []
+        for contact in (self | commercial):
+            raw.append(contact.email)
+            if 'email_edi' in contact._fields:
+                raw.append(contact.email_edi)
+        raw += commercial.child_ids.filtered(
+            lambda c: c.type == 'invoice').mapped('email')
+        raw += commercial.followup_partner_ids.mapped('email')
+        addresses, seen = [], set()
+        for value in raw:
+            for email in email_split((value or '').replace(';', ',')):
+                if email.lower() not in seen:
+                    seen.add(email.lower())
+                    addresses.append(email)
+        return addresses
+
     def do_partner_mail(self):
         ctx = self.env.context.copy()
         ctx['followup'] = True
         template = 'om_account_followup.email_template_om_account_followup_default'
         unknown_mails = 0
         for partner in self:
-            partners_to_email = [child for child in partner.child_ids if
-                                 child.type == 'invoice' and child.email]
-            if not partners_to_email and partner.email:
-                partners_to_email = [partner]
-            if partners_to_email:
+            addresses = partner._get_followup_email_addresses()
+            if addresses:
                 level = partner.latest_followup_level_id_without_lit
-                for partner_to_email in partners_to_email:
-                    if level and level.send_email and \
-                            level.email_template_id and \
-                            level.email_template_id.id:
-                        level.email_template_id.with_context(ctx).send_mail(
-                            partner_to_email.id)
-                    else:
-                        mail_template_id = self.env.ref(template)
-                        mail_template_id.with_context(ctx).send_mail(
-                            partner_to_email.id)
-                if partner not in partners_to_email:
-                    partner.message_post(body=_(
-                        'Overdue email sent to %s' % ', '.join(
-                            ['%s <%s>' % (partner.name, partner.email) for
-                             partner in partners_to_email])))
+                if level and level.send_email and level.email_template_id:
+                    mail_template = level.email_template_id
+                else:
+                    mail_template = self.env.ref(template)
+                # one email per customer, addressed to all its recipients
+                mail_template.with_context(ctx).send_mail(
+                    partner.id,
+                    email_values={'email_to': ', '.join(addresses),
+                                  'recipient_ids': []})
+                partner.message_post(body=Markup(_(
+                    "Overdue email sent to %s")) % ', '.join(addresses))
             else:
                 unknown_mails = unknown_mails + 1
                 action_text = _("Email not sent because of email address "
@@ -359,6 +376,14 @@ class ResPartner(models.Model):
                 partners.add(aml.partner_id.id)
         return list(partners)
 
+    followup_partner_ids = fields.Many2many(
+        'res.partner', 'res_partner_followup_recipient_rel',
+        'partner_id', 'recipient_id',
+        string='Additional Follow-up Recipients',
+        domain=[('email', '!=', False)],
+        help="Follow-up emails are sent to the contact's email, its email "
+             "for invoicing and its invoice addresses; add other contacts "
+             "here to send them a copy as well.")
     payment_responsible_id = fields.Many2one(
         'res.users', ondelete='set null',
         string='Follow-up Responsible', tracking=True, copy=False,

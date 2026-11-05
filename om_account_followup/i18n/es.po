@@ -265,6 +265,12 @@ msgid "Action To Do"
 msgstr "Acción a realizar"
 
 #. module: om_account_followup
+#: model:ir.model.fields,field_description:om_account_followup.field_res_partner__followup_partner_ids
+#: model:ir.model.fields,field_description:om_account_followup.field_res_users__followup_partner_ids
+msgid "Additional Follow-up Recipients"
+msgstr "Destinatarios adicionales del seguimiento"
+
+#. module: om_account_followup
 #: model_terms:ir.ui.view,arch_db:om_account_followup.view_om_account_followup_followup_line_form
 msgid "After"
 msgstr "Después de"
@@ -697,6 +703,12 @@ msgid "Follow-up Criteria"
 msgstr "Criterios de seguimiento"
 
 #. module: om_account_followup
+#: model:ir.model.fields,help:om_account_followup.field_res_partner__followup_partner_ids
+#: model:ir.model.fields,help:om_account_followup.field_res_users__followup_partner_ids
+msgid "Follow-up emails are sent to the contact's email, its email for invoicing and its invoice addresses; add other contacts here to send them a copy as well."
+msgstr "Los correos de seguimiento se envían al correo del contacto, a su correo de facturación y a sus direcciones de facturación; agregue aquí otros contactos para enviarles también una copia."
+
+#. module: om_account_followup
 #. odoo-python
 #: code:addons/om_account_followup/wizard/followup_print.py:0
 msgid "Follow-up letter of <i>{followup}</i> will be sent"
@@ -1036,6 +1048,12 @@ msgstr "Opcionalmente puede asignar un usuario en este campo, quien quedará com
 #: model_terms:ir.ui.view,arch_db:om_account_followup.view_om_account_followup_print
 msgid "or"
 msgstr "o"
+
+#. module: om_account_followup
+#. odoo-python
+#: code:addons/om_account_followup/models/partner.py:0
+msgid "Overdue email sent to %s"
+msgstr "Correo de vencimiento enviado a %s"
 
 #. module: om_account_followup
 #: model:ir.model.fields,field_description:om_account_followup.field_followup_stat__partner_id
