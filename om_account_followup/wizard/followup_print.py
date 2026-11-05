@@ -190,8 +190,6 @@ class FollowupPrint(models.TransientModel):
             (company_id,)
         )
         move_lines = self._cr.fetchall()
-        old = None
-        fups = {}
         fup_id = 'followup_id' in context and context[
             'followup_id'] or data.followup_id.id
         date = 'date' in context and context['date'] or data.date
@@ -208,10 +206,9 @@ class FollowupPrint(models.TransientModel):
             (fup_id,)
         )
 
-        for result in self._cr.dictfetchall():
-            delay = datetime.timedelta(days=result['delay'])
-            fups[old] = (current_date - delay, result['id'])
-            old = result['id']
+        # levels of this plan, by increasing delay
+        levels = [(r['delay'], r['id']) for r in self._cr.dictfetchall()]
+        level_delay = {lid: d for d, lid in levels}
 
         partner_list = []
         to_update = {}
@@ -220,19 +217,25 @@ class FollowupPrint(models.TransientModel):
                 move_lines:
             if not partner_id:
                 continue
-            if followup_line_id not in fups:
+            if followup_line_id and followup_line_id not in level_delay:
+                continue  # level of another follow-up plan
+            ref_date = date_maturity or date
+            if not ref_date:
+                continue
+            overdue_days = (current_date - ref_date).days
+            # jump straight to the highest level reached, so an invoice that
+            # is already very overdue gets one email (of its real level)
+            # instead of one email per level on consecutive runs
+            reached = [lid for d, lid in levels if d <= overdue_days]
+            if not reached:
+                continue
+            target = reached[-1]
+            if followup_line_id and \
+                    level_delay[target] <= level_delay[followup_line_id]:
                 continue
             stat_line_id = partner_id * 10000 + company_id
-            if date_maturity:
-                # date_maturity = fields.Date.to_string(date_maturity)
-                if date_maturity <= fups[followup_line_id][0]:
-                    if stat_line_id not in partner_list:
-                        partner_list.append(stat_line_id)
-                    to_update[str(id)] = {'level': fups[followup_line_id][1],
-                                          'partner_id': stat_line_id}
-            elif date and date <= fups[followup_line_id][0]:
-                if stat_line_id not in partner_list:
-                    partner_list.append(stat_line_id)
-                to_update[str(id)] = {'level': fups[followup_line_id][1],
-                                      'partner_id': stat_line_id}
+            if stat_line_id not in partner_list:
+                partner_list.append(stat_line_id)
+            to_update[str(id)] = {'level': target,
+                                  'partner_id': stat_line_id}
         return {'partner_ids': partner_list, 'to_update': to_update}
