@@ -105,28 +105,93 @@ class ResPartner(models.Model):
             'om_account_followup.action_report_followup').report_action(
             self, data=datas)
 
-    def _get_followup_email_addresses(self):
-        """Addresses a follow-up email for this contact goes to: the contact
-        and its company, the e-invoicing email (if the e-invoicing module
-        provides one), the invoice addresses and the additional follow-up
-        recipients. Duplicates are removed."""
+    def _get_followup_recipients(self):
+        """Recipients of a follow-up email for this contact.
+
+        Returns (contacts, extra_emails): the contacts with an email (the
+        contact and its company, the invoice addresses and the additional
+        follow-up recipients), and the plain addresses that belong to none
+        of them (the e-invoicing email, when the e-invoicing module provides
+        one). Contacts are never created for plain addresses."""
         self.ensure_one()
         commercial = self.commercial_partner_id
-        raw = []
+        contacts = (self | commercial
+                    | commercial.child_ids.filtered(lambda c: c.type == 'invoice')
+                    | commercial.followup_partner_ids).filtered('email')
+        known = set()
+        for contact in contacts:
+            known.update(e.lower() for e in email_split(
+                contact.email.replace(';', ',')))
+        extra = []
         for contact in (self | commercial):
-            raw.append(contact.email)
-            if 'email_edi' in contact._fields:
-                raw.append(contact.email_edi)
-        raw += commercial.child_ids.filtered(
-            lambda c: c.type == 'invoice').mapped('email')
-        raw += commercial.followup_partner_ids.mapped('email')
-        addresses, seen = [], set()
-        for value in raw:
-            for email in email_split((value or '').replace(';', ',')):
-                if email.lower() not in seen:
-                    seen.add(email.lower())
-                    addresses.append(email)
-        return addresses
+            if 'email_edi' not in contact._fields:
+                continue
+            for email in email_split((contact.email_edi or '').replace(';', ',')):
+                if email.lower() not in known:
+                    known.add(email.lower())
+                    extra.append(email)
+        return contacts, extra
+
+    def _get_followup_email_addresses(self):
+        """All addresses a follow-up email for this contact goes to."""
+        contacts, extra = self._get_followup_recipients()
+        addresses = []
+        for contact in contacts:
+            addresses += email_split(contact.email.replace(';', ','))
+        return addresses + extra
+
+    def _notify_get_recipients(self, message, msg_vals, **kwargs):
+        recipients = super()._notify_get_recipients(message, msg_vals, **kwargs)
+        if self.env.context.get('followup_recipients_only'):
+            # follow-up emails go to the follow-up recipients only, not to the
+            # contact's followers (internal users)
+            pids = set(msg_vals.get('partner_ids', []) if msg_vals
+                       else message.sudo().partner_ids.ids)
+            recipients = [r for r in recipients if r['id'] in pids]
+        return recipients
+
+    def _notify_by_email_get_final_mail_values(self, recipient_ids, mail_values,
+                                               additional_values=None):
+        values = super()._notify_by_email_get_final_mail_values(
+            recipient_ids, mail_values, additional_values=additional_values)
+        extra = self.env.context.get('followup_email_to')
+        if extra and extra[0] in recipient_ids:
+            # plain addresses (e-invoicing email) ride along with the email of
+            # the main recipient and share its delivery status
+            values['email_to'] = ','.join(
+                filter(None, [values.get('email_to')] + list(extra[1])))
+        return values
+
+    def _send_followup_email(self, mail_template, ctx):
+        """Send the follow-up email through the chatter, so it is logged with
+        its delivery status (envelope icon)."""
+        self.ensure_one()
+        contacts, extra = self._get_followup_recipients()
+        if not contacts:
+            # only plain addresses: no contact to notify, send a plain email
+            mail_template.with_context(ctx).send_mail(
+                self.id, email_values={'email_to': ', '.join(extra),
+                                       'recipient_ids': []})
+            self.message_post(body=Markup(_(
+                "Overdue email sent to %s")) % ', '.join(extra))
+            return
+        values = mail_template.with_context(ctx)._generate_template(
+            [self.id], ['subject', 'body_html', 'email_from', 'reply_to'])[self.id]
+        anchor = self.commercial_partner_id if \
+            self.commercial_partner_id in contacts else contacts[:1]
+        self.with_context(
+            ctx, followup_recipients_only=True,
+            followup_email_to=(anchor.id, tuple(extra)) if extra else False,
+        ).message_post(
+            body=values.get('body_html', ''),
+            subject=values.get('subject'),
+            email_from=values.get('email_from'),
+            reply_to=values.get('reply_to'),
+            partner_ids=contacts.ids,
+            message_type='comment',
+            subtype_xmlid='mail.mt_comment',
+            email_layout_xmlid='mail.mail_notification_light',
+        )
 
     def do_partner_mail(self):
         ctx = self.env.context.copy()
@@ -134,20 +199,14 @@ class ResPartner(models.Model):
         template = 'om_account_followup.email_template_om_account_followup_default'
         unknown_mails = 0
         for partner in self:
-            addresses = partner._get_followup_email_addresses()
-            if addresses:
+            contacts, extra = partner._get_followup_recipients()
+            if contacts or extra:
                 level = partner.latest_followup_level_id_without_lit
                 if level and level.send_email and level.email_template_id:
                     mail_template = level.email_template_id
                 else:
                     mail_template = self.env.ref(template)
-                # one email per customer, addressed to all its recipients
-                mail_template.with_context(ctx).send_mail(
-                    partner.id,
-                    email_values={'email_to': ', '.join(addresses),
-                                  'recipient_ids': []})
-                partner.message_post(body=Markup(_(
-                    "Overdue email sent to %s")) % ', '.join(addresses))
+                partner._send_followup_email(mail_template, ctx)
             else:
                 unknown_mails = unknown_mails + 1
                 action_text = _("Email not sent because of email address "
