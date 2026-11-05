@@ -133,14 +133,20 @@
                         <field name="unreconciled_aml_ids">
                             <list string="Account Move line" editable="bottom"
                                   create="false" delete="false"
-                                  colors="red:(not date_maturity or date_maturity&lt;=current_date) and result&gt;0">
+                                  decoration-muted="blocked"
+                                  decoration-danger="not blocked and date_maturity and date_maturity &lt; current_date">
                                 <field name="date" readonly="True"/>
                                 <field name="company_id" readonly="True"
                                        groups="base.group_multi_company"/>
                                 <field name="move_id" readonly="True"/>
+                                <field name="ref" readonly="True" optional="show"/>
                                 <field name="date_maturity" readonly="True"/>
-                                <field name="result" readonly="True"/>
-                                <field name="followup_line_id" invisible='1'/>
+                                <field name="followup_line_id" readonly="True" optional="show"/>
+                                <field name="company_currency_id" column_invisible="True"/>
+                                <field name="amount_residual" string="Amount Due" readonly="True"
+                                       widget="monetary" options="{'currency_field': 'company_currency_id'}"
+                                       sum="Total"/>
+                                <field name="blocked" widget="boolean_toggle"/>
                             </list>
                         </field>
                         <group class="oe_subtotal_footer oe_right">

@@ -48,13 +48,13 @@ msgid ": User's Company Name"
 msgstr ": Nombre de la empresa del usuario"
 
 #. module: om_account_followup
-#: model_terms:ir.ui.view,arch_db:om_account_followup.report_followup
+#: model_terms:ir.ui.view,arch_db:om_account_followup.report_followup_document
 msgid ""
 "<br/>\n"
-"                                Customer ref:"
+"                        Customer ref:"
 msgstr ""
 "<br/>\n"
-"                                Ref. cliente:"
+"                        Ref. cliente:"
 
 #. module: om_account_followup
 #: model:mail.template,body_html:om_account_followup.email_template_om_account_followup_level0
@@ -272,13 +272,14 @@ msgstr "Después de"
 #. module: om_account_followup
 #. odoo-python
 #: code:addons/om_account_followup/models/partner.py:0
-#: model_terms:ir.ui.view,arch_db:om_account_followup.report_followup
+#: model_terms:ir.ui.view,arch_db:om_account_followup.report_followup_document
 msgid "Amount"
 msgstr "Monto"
 
 #. module: om_account_followup
 #: model:ir.model.fields,field_description:om_account_followup.field_res_partner__payment_amount_due
 #: model:ir.model.fields,field_description:om_account_followup.field_res_users__payment_amount_due
+#: model_terms:ir.ui.view,arch_db:om_account_followup.view_partner_inherit_followup_form
 msgid "Amount Due"
 msgstr "Monto adeudado"
 
@@ -345,6 +346,11 @@ msgid "Check if you want to print follow-ups without changing follow-up level."
 msgstr "Marque esta opción si desea imprimir los seguimientos sin cambiar el nivel de seguimiento."
 
 #. module: om_account_followup
+#: model:ir.model.fields,help:om_account_followup.field_account_move_line__blocked
+msgid "Check this box to exclude this journal item from payment follow-ups (reminder emails, letters and amounts due), e.g. because it is in litigation or a payment agreement exists."
+msgstr "Marque esta casilla para excluir este apunte contable de los seguimientos de pago (correos de recordatorio, cartas y montos adeudados), p. ej. porque está en litigio o existe un acuerdo de pago."
+
+#. module: om_account_followup
 #: model_terms:ir.actions.act_window,help:om_account_followup.action_om_account_followup_definition_form
 msgid "Click to define follow-up levels and their related actions."
 msgstr "Haga clic para definir los niveles de seguimiento y sus acciones asociadas."
@@ -367,16 +373,6 @@ msgstr "Cerrar"
 #: model_terms:ir.ui.view,arch_db:om_account_followup.view_om_account_followup_stat_search
 msgid "Company"
 msgstr "Compañía"
-
-#. module: om_account_followup
-#: model:ir.model,name:om_account_followup.model_res_config_settings
-msgid "Config Settings"
-msgstr "res.config.settings"
-
-#. module: om_account_followup
-#: model:ir.model,name:om_account_followup.model_res_partner
-msgid "Contact"
-msgstr "Contacto"
 
 #. module: om_account_followup
 #: model:ir.model.fields,field_description:om_account_followup.field_followup_followup__create_uid
@@ -544,7 +540,7 @@ msgstr "Recordatorio de pago predeterminado"
 #. odoo-python
 #: code:addons/om_account_followup/models/partner.py:0
 #: model:ir.model.fields,field_description:om_account_followup.field_followup_sending_results__description
-#: model_terms:ir.ui.view,arch_db:om_account_followup.report_followup
+#: model_terms:ir.ui.view,arch_db:om_account_followup.report_followup_document
 msgid "Description"
 msgstr "Descripción"
 
@@ -569,25 +565,20 @@ msgid "Do not change message text, if you want to send email in partner language
 msgstr "No cambie el texto del mensaje si desea enviar el correo en el idioma del contacto, o configúrelo desde la compañía"
 
 #. module: om_account_followup
-#: model_terms:ir.ui.view,arch_db:om_account_followup.report_followup
+#: model_terms:ir.ui.view,arch_db:om_account_followup.report_followup_document
 msgid ""
 "Document: Customer account statement\n"
-"                                <br/>\n"
-"                                Date:"
+"                        <br/>\n"
+"                        Date:"
 msgstr ""
 "Documento: Estado de cuenta del cliente\n"
-"                                <br/>\n"
-"                                Fecha:"
+"                        <br/>\n"
+"                        Fecha:"
 
 #. module: om_account_followup
 #: model_terms:ir.ui.view,arch_db:om_account_followup.view_om_account_followup_sending_results
 msgid "Download Letters"
 msgstr "Descargar cartas"
-
-#. module: om_account_followup
-#: model_terms:ir.ui.view,arch_db:om_account_followup.report_followup
-msgid "Due"
-msgstr "Vencido"
 
 #. module: om_account_followup
 #. odoo-python
@@ -632,6 +623,17 @@ msgstr " correo(s) enviado(s)"
 #: code:addons/om_account_followup/wizard/followup_print.py:0
 msgid " email(s) should have been sent, but "
 msgstr " correo(s) debían enviarse, pero "
+
+#. module: om_account_followup
+#: model:ir.model.fields,help:om_account_followup.field_account_bank_statement_line__followup_blocked
+#: model:ir.model.fields,help:om_account_followup.field_account_move__followup_blocked
+msgid "Exclude this entry's receivable items from payment follow-ups (reminder emails, letters and amounts due)."
+msgstr "Excluye las partidas por cobrar de este asiento de los seguimientos de pago (correos de recordatorio, cartas y montos adeudados)."
+
+#. module: om_account_followup
+#: model_terms:ir.ui.view,arch_db:om_account_followup.view_om_account_followup_stat_search
+msgid "Excluding journal items marked as No Follow-up"
+msgstr "Excluye los apuntes contables marcados como Sin seguimiento"
 
 #. module: om_account_followup
 #: model:ir.model.fields,field_description:om_account_followup.field_followup_stat__date_move
@@ -810,11 +812,6 @@ msgid "If not specified by the latest follow-up level, it will send from the def
 msgstr "Si el último nivel de seguimiento no lo especifica, se enviará con la plantilla de correo predeterminada"
 
 #. module: om_account_followup
-#: model_terms:ir.ui.view,arch_db:om_account_followup.view_om_account_followup_stat_search
-msgid "Including journal entries marked as a litigation"
-msgstr "Incluye los asientos marcados como en litigio"
-
-#. module: om_account_followup
 #: model:ir.model.fields,field_description:om_account_followup.field_followup_stat_by_partner__invoice_partner_id
 msgid "Invoice Address"
 msgstr "Dirección de facturación"
@@ -822,7 +819,7 @@ msgstr "Dirección de facturación"
 #. module: om_account_followup
 #. odoo-python
 #: code:addons/om_account_followup/models/partner.py:0
-#: model_terms:ir.ui.view,arch_db:om_account_followup.report_followup
+#: model_terms:ir.ui.view,arch_db:om_account_followup.report_followup_document
 msgid "Invoice Date"
 msgstr "Fecha de factura"
 
@@ -831,11 +828,6 @@ msgstr "Fecha de factura"
 #: code:addons/om_account_followup/wizard/followup_print.py:0
 msgid "Invoices Reminder"
 msgstr "Recordatorio de facturas"
-
-#. module: om_account_followup
-#: model:ir.model,name:om_account_followup.model_account_move_line
-msgid "Journal Item"
-msgstr "Apunte contable"
 
 #. module: om_account_followup
 #: model:ir.actions.act_window,name:om_account_followup.account_manual_reconcile_action
@@ -916,12 +908,6 @@ msgid " letter(s) in report"
 msgstr " carta(s) en el informe"
 
 #. module: om_account_followup
-#. odoo-python
-#: code:addons/om_account_followup/models/partner.py:0
-msgid "Lit."
-msgstr "Litigio"
-
-#. module: om_account_followup
 #: model:ir.model.fields,field_description:om_account_followup.field_followup_line__manual_action
 #: model_terms:ir.ui.view,arch_db:om_account_followup.view_om_account_followup_followup_line_form
 msgid "Manual Action"
@@ -939,7 +925,7 @@ msgid "Manual Follow-Ups"
 msgstr "Seguimientos manuales"
 
 #. module: om_account_followup
-#: model_terms:ir.ui.view,arch_db:om_account_followup.report_followup
+#: model_terms:ir.ui.view,arch_db:om_account_followup.report_followup_document
 msgid "Maturity Date"
 msgstr "Fecha de vencimiento"
 
@@ -980,6 +966,15 @@ msgstr "Próxima acción"
 #: model:ir.model.fields,field_description:om_account_followup.field_res_users__payment_next_action_date
 msgid "Next Action Date"
 msgstr "Fecha de la próxima acción"
+
+#. module: om_account_followup
+#: model:ir.model.fields,field_description:om_account_followup.field_account_bank_statement_line__followup_blocked
+#: model:ir.model.fields,field_description:om_account_followup.field_account_move__followup_blocked
+#: model:ir.model.fields,field_description:om_account_followup.field_account_move_line__blocked
+#: model:ir.model.fields,field_description:om_account_followup.field_followup_stat__blocked
+#: model_terms:ir.ui.view,arch_db:om_account_followup.view_account_invoice_filter_followup_blocked
+msgid "No Follow-up"
+msgstr "Sin seguimiento"
 
 #. module: om_account_followup
 #: model_terms:ir.actions.act_window,help:om_account_followup.account_manual_reconcile_action
@@ -1078,7 +1073,7 @@ msgid "Printed overdue payments report"
 msgstr "Se imprimió el informe de pagos vencidos"
 
 #. module: om_account_followup
-#: model_terms:ir.ui.view,arch_db:om_account_followup.report_followup
+#: model_terms:ir.ui.view,arch_db:om_account_followup.report_followup_document
 msgid "Ref"
 msgstr "Ref."
 
@@ -1281,6 +1276,11 @@ msgstr ""
 "                        con mayor atraso."
 
 #. module: om_account_followup
+#: model_terms:ir.ui.view,arch_db:om_account_followup.view_partner_inherit_followup_form
+msgid "Total"
+msgstr "Total"
+
+#. module: om_account_followup
 #: model_terms:ir.ui.view,arch_db:om_account_followup.account_move_line_partner_tree
 #: model_terms:ir.ui.view,arch_db:om_account_followup.view_move_line_reconcile_tree
 msgid "Total credit"
@@ -1293,7 +1293,7 @@ msgid "Total debit"
 msgstr "Débito total"
 
 #. module: om_account_followup
-#: model_terms:ir.ui.view,arch_db:om_account_followup.report_followup
+#: model_terms:ir.ui.view,arch_db:om_account_followup.report_followup_document
 msgid "Total:"
 msgstr "Total:"
 
@@ -1302,6 +1302,12 @@ msgstr "Total:"
 #: model:ir.model.fields,field_description:om_account_followup.field_res_users__unreconciled_aml_ids
 msgid "Unreconciled Aml"
 msgstr "Apuntes sin conciliar"
+
+#. module: om_account_followup
+#. odoo-python
+#: code:addons/om_account_followup/models/account_move.py:0
+msgid "Unsupported search on No Follow-up: %s %s"
+msgstr "Búsqueda no soportada en Sin seguimiento: %s %s"
 
 #. module: om_account_followup
 #: model:mail.template,name:om_account_followup.email_template_om_account_followup_level2

@@ -3,6 +3,8 @@ import time
 from odoo import api, fields, models, _
 from markupsafe import Markup, escape
 
+from ..models.account_move import FOLLOWUP_ACTIVE_SQL
+
 
 class FollowupPrint(models.TransientModel):
     _name = 'followup.print'
@@ -122,7 +124,7 @@ class FollowupPrint(models.TransientModel):
 
         partners_to_clear = []
         for part in ids:
-            if not part.unreconciled_aml_ids:
+            if not part.unreconciled_aml_ids.filtered(lambda l: not l.blocked):
                 partners_to_clear.append(part.id)
                 part.action_done()
         return len(partners_to_clear)
@@ -179,12 +181,10 @@ class FollowupPrint(models.TransientModel):
                 FROM account_move_line AS l
                 LEFT JOIN account_account AS a
                 ON (l.account_id=a.id)
-                WHERE (l.full_reconcile_id IS NULL)
-                AND a.account_type = 'asset_receivable'
+                WHERE ''' + FOLLOWUP_ACTIVE_SQL + '''
                 AND (l.partner_id is NOT NULL)
-                AND (l.debit > 0)
                 AND (l.company_id = %s)
-                ORDER BY l.date''' ,
+                ORDER BY l.date''',
             (company_id,)
         )
         move_lines = self._cr.fetchall()

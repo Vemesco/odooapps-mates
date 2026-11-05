@@ -1,10 +1,11 @@
-from functools import reduce
 from markupsafe import Markup, escape
 from lxml import etree
 from odoo import api, fields, models, _
 from datetime import datetime
 from odoo.exceptions import ValidationError
-from odoo.tools.misc import formatLang
+from odoo.tools.misc import formatLang, format_date
+
+from .account_move import FOLLOWUP_ACTIVE_SQL
 
 
 class ResPartner(models.Model):
@@ -41,7 +42,7 @@ class ResPartner(models.Model):
                 if (aml.company_id == company) and aml.followup_date and (
                         not latest_date or latest_date < aml.followup_date):
                     latest_date = aml.followup_date
-                if (aml.company_id == company) and \
+                if (aml.company_id == company) and not aml.blocked and \
                         (aml_followup and (not latest_days_without_lit or
                          latest_days_without_lit < aml_followup.delay)):
                     latest_days_without_lit = aml_followup.delay
@@ -148,6 +149,9 @@ class ResPartner(models.Model):
 
     def get_followup_table_html(self):
         self.ensure_one()
+        # render in the customer's language, whoever triggers the email
+        lang = self.lang or self.commercial_partner_id.lang or self.env.lang
+        self = self.with_context(lang=lang)
         partner = self.commercial_partner_id
         followup_table = ''
         if partner.unreconciled_aml_ids:
@@ -160,7 +164,7 @@ class ResPartner(models.Model):
                 currency = currency_dict.get('line', [
                     {'currency_id': company.currency_id}])[0]['currency_id']
                 followup_table += '''
-                <table border="2" width=100%%>
+                <table border="2" width="100%">
                 <tr>
                     <td>''' + _("Invoice Date") + '''</td>
                     <td>''' + _("Description") + '''</td>
@@ -168,12 +172,9 @@ class ResPartner(models.Model):
                     <td>''' + _("Due Date") + '''</td>
                     <td>''' + _("Amount") + " (%s)" % (
                     currency.symbol) + '''</td>
-                    <td>''' + _("Lit.") + '''</td>
                 </tr>
                 '''
-                total = 0
                 for aml in currency_dict['line']:
-                    total += aml['balance']
                     strbegin = "<TD>"
                     strend = "</TD>"
                     date = aml['date_maturity'] or aml['date']
@@ -181,17 +182,21 @@ class ResPartner(models.Model):
                     if date <= current_date and aml['balance'] > 0:
                         strbegin = "<TD><B>"
                         strend = "</B></TD>"
-                    followup_table += "<TR>" + strbegin + str(aml['date']) + \
-                                      strend + strbegin + aml['name'] + \
+                    followup_table += "<TR>" + strbegin + \
+                                      format_date(self.env, aml['date']) + \
                                       strend + strbegin + \
-                                      (aml['ref'] or '') + strend + \
-                                      strbegin + str(date) + strend + \
-                                      strbegin + str(aml['balance']) + \
+                                      str(escape(aml['name'] or '')) + \
+                                      strend + strbegin + \
+                                      str(escape(aml['ref'] or '')) + strend + \
+                                      strbegin + format_date(self.env, date) + \
+                                      strend + \
+                                      strbegin + formatLang(
+                                          self.env, aml['balance'],
+                                          currency_obj=currency) + \
                                       strend + "</TR>"
 
-                total = reduce(lambda x, y: x + y['balance'],
-                               currency_dict['line'], 0.00)
-                total = formatLang(self.env, total, currency_obj=currency)
+                total = formatLang(self.env, currency_dict['total'],
+                                   currency_obj=currency)
                 followup_table += '''<tr> </tr>
                                 </table>
                                 <center>''' + _(
@@ -227,17 +232,16 @@ class ResPartner(models.Model):
     def do_button_print(self):
         self.ensure_one()
         company_id = self.env.user.company_id.id
-        if not self.env['account.move.line'].search(
-                [('partner_id', '=', self.id),
-                 ('account_id.account_type', '=', 'asset_receivable'),
-                 ('full_reconcile_id', '=', False),
+        aml_obj = self.env['account.move.line']
+        if not aml_obj.search(
+                aml_obj._followup_open_domain() +
+                [('partner_id', '=', self.commercial_partner_id.id),
                  ('company_id', '=', company_id),
                  '|', ('date_maturity', '=', False),
-                 ('date_maturity', '<=', fields.Date.today())]):
+                 ('date_maturity', '<=', fields.Date.today())], limit=1):
             raise ValidationError(
                 _("The partner does not have any accounting entries to "
                   "print in the overdue report for the current company."))
-        self.message_post(body=_('Printed overdue payments report'))
         self.message_post(body=_('Printed overdue payments report'))
 
         wizard_partner_ids = [self.id * 10000 + company_id]
@@ -259,13 +263,13 @@ class ResPartner(models.Model):
             worst_due_date = False
             amount_due = amount_overdue = 0.0
             for aml in partner.unreconciled_aml_ids:
-                if (aml.company_id == company):
+                if aml.company_id == company and not aml.blocked:
                     date_maturity = aml.date_maturity or aml.date
                     if not worst_due_date or date_maturity < worst_due_date:
                         worst_due_date = date_maturity
-                    amount_due += aml.result
+                    amount_due += aml.amount_residual
                     if (date_maturity <= current_date):
-                        amount_overdue += aml.result
+                        amount_overdue += aml.amount_residual
             partner.payment_amount_due = amount_due
             partner.payment_amount_overdue = amount_overdue
             partner.payment_earliest_due_date = worst_due_date
@@ -283,7 +287,8 @@ class ResPartner(models.Model):
                 raise ValueError(f"Unsupported operator: {operator}")
 
         having_where_clause = ' AND '.join(having_clauses)
-        overdue_only_str = 'AND date_maturity <= NOW()' if overdue_only else ''
+        overdue_only_str = ('AND COALESCE(l.date_maturity, l.date) <= CURRENT_DATE'
+                            if overdue_only else '')
 
         query = ('''
             SELECT pid AS partner_id, SUM(bal2) FROM (
@@ -291,19 +296,19 @@ class ResPartner(models.Model):
                     CASE WHEN bal IS NOT NULL THEN bal ELSE 0.0 END AS bal2, 
                     p.id as pid 
                 FROM (
-                    SELECT 
-                        (debit - credit) AS bal, 
-                        partner_id 
+                    SELECT
+                        l.amount_residual AS bal,
+                        l.partner_id
                     FROM account_move_line l
                     LEFT JOIN account_account a ON a.id = l.account_id
-                    WHERE a.account_type = 'asset_receivable'
-                    %s AND full_reconcile_id IS NULL
+                    WHERE %s
+                    %s
                     AND l.company_id = %%s
                 ) AS l
-                RIGHT JOIN res_partner p ON p.id = partner_id 
+                RIGHT JOIN res_partner p ON p.id = partner_id
             ) AS pl
             GROUP BY pid HAVING %s
-        ''') % (overdue_only_str, having_where_clause)
+        ''') % (FOLLOWUP_ACTIVE_SQL, overdue_only_str, having_where_clause)
 
         params = [company_id] + having_values
         return query, params
@@ -326,11 +331,10 @@ class ResPartner(models.Model):
         having_where_clause = having_where_clause % (having_values[0])
         query = """SELECT partner_id FROM account_move_line l
                 LEFT JOIN account_account a ON a.id = l.account_id
-                WHERE a.account_type = 'asset_receivable' 
-                AND l.company_id = %s 
-                AND l.full_reconcile_id IS NULL 
+                WHERE %s
+                AND l.company_id = %s
                 AND partner_id IS NOT NULL GROUP BY partner_id"""
-        query = query % company_id
+        query = query % (FOLLOWUP_ACTIVE_SQL, int(company_id))
         if having_where_clause:
             query += ' HAVING %s ' % (having_where_clause)
         self._cr.execute(query)
@@ -377,7 +381,11 @@ class ResPartner(models.Model):
     )
     unreconciled_aml_ids = fields.One2many(
         'account.move.line', 'partner_id',
-        domain=[('full_reconcile_id', '=', False), ('account_id.account_type', '=', 'asset_receivable')]
+        domain=[('account_id.account_type', '=', 'asset_receivable'),
+                ('parent_state', '=', 'posted'),
+                ('reconciled', '=', False),
+                ('amount_residual', '>', 0),
+                ('amount_residual_currency', '>', 0.005)],
     )
     latest_followup_date = fields.Date(
         compute='_get_latest', string="Latest Follow-up Date", compute_sudo=True,

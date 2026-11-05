@@ -1,5 +1,6 @@
 import time
 from collections import defaultdict
+from markupsafe import Markup, escape
 from odoo.exceptions import ValidationError
 from odoo import api, fields, models, _
 from odoo.tools import format_date
@@ -38,19 +39,20 @@ class ReportFollowup(models.AbstractModel):
     def _lines_get_with_partner(self, partner, company_id):
         moveline_obj = self.env['account.move.line']
         moveline_ids = moveline_obj.search(
+            moveline_obj._followup_open_domain() +
             [('partner_id', '=', partner.id),
-             ('account_id.account_type', '=', 'asset_receivable'),
-             ('full_reconcile_id', '=', False),
              ('company_id', '=', company_id),
              '|', ('date_maturity', '=', False),
-             ('date_maturity', '<=', fields.Date.today())])
+             ('date_maturity', '<=', fields.Date.today())],
+            order='date_maturity, date, id')
         lines_per_currency = defaultdict(list)
-        total = 0
+        totals = defaultdict(float)
         for line in moveline_ids:
             currency = line.currency_id or line.company_id.currency_id
-            balance = line.debit - line.credit
+            # amount still due, in the invoice currency
+            balance = line.amount_residual
             if currency != line.company_id.currency_id:
-                balance = line.amount_currency
+                balance = line.amount_residual_currency
             line_data = {
                 'name': line.move_id.name,
                 'ref': line.ref,
@@ -61,14 +63,16 @@ class ReportFollowup(models.AbstractModel):
                 'balance': balance,
                 'currency_id': currency,
             }
-            total = total + line_data['balance']
+            totals[currency] += balance
             lines_per_currency[currency].append(line_data)
 
-        return [{'total': total, 'line': lines, 'currency': currency} for
-                currency, lines in
-                lines_per_currency.items()]
+        return [{'total': totals[currency], 'line': lines, 'currency': currency}
+                for currency, lines in lines_per_currency.items()]
 
     def _get_text(self, stat_line, followup_id, context=None):
+        # letter text in the customer's language, not the printing user's
+        lang = stat_line.partner_id.lang or self.env.lang
+        self = self.with_context(lang=lang)
         fp_obj = self.env['followup.followup']
         fp_line = fp_obj.browse(followup_id).followup_line
         if not fp_line:
@@ -82,12 +86,11 @@ class ReportFollowup(models.AbstractModel):
                 default_text = line.description
             li_delay.append(line.delay)
         li_delay.sort(reverse=True)
-        partner_line_ids = self.env['account.move.line'].search(
+        aml_obj = self.env['account.move.line']
+        partner_line_ids = aml_obj.search(
+            aml_obj._followup_open_domain() +
             [('partner_id', '=', stat_line.partner_id.id),
-             ('full_reconcile_id', '=', False),
              ('company_id', '=', stat_line.company_id.id),
-             ('debit', '!=', False),
-             ('account_id.account_type', '=', 'asset_receivable'),
              ('followup_line_id', '!=', False)])
 
         partner_max_delay = 0
@@ -96,17 +99,17 @@ class ReportFollowup(models.AbstractModel):
             if i.followup_line_id.delay > partner_max_delay and \
                     i.followup_line_id.description:
                 partner_max_delay = i.followup_line_id.delay
-                partner_max_text = i.followup_line_id.description
+                partner_max_text = i.followup_line_id.with_context(
+                    lang=lang).description
         text = partner_max_delay and partner_max_text or default_text
         if text:
-            lang_obj = self.env['res.lang']
-            lang_ids = lang_obj.search(
-                [('code', '=', stat_line.partner_id.lang)], limit=1)
-            date_format = lang_ids and lang_ids.date_format or '%Y-%m-%d'
-            text = text % {
+            text = text.strip() % {
                 'partner_name': stat_line.partner_id.name,
-                'date': time.strftime(date_format),
+                'date': format_date(self.env, fields.Date.context_today(self),
+                                    lang_code=lang),
                 'company_name': stat_line.company_id.name,
                 'user_signature': self.env.user.signature or '',
             }
+            text = Markup('<br/>').join(
+                escape(t.strip()) for t in text.split('\n'))
         return text

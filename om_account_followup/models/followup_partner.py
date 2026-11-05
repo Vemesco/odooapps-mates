@@ -1,6 +1,8 @@
 from odoo import api, fields, models, _
 from odoo import tools
 
+from .account_move import FOLLOWUP_ACTIVE_SQL
+
 
 class FollowupStatByPartner(models.Model):
     _name = "followup.stat.by.partner"
@@ -34,14 +36,13 @@ class FollowupStatByPartner(models.Model):
                     max(l.date) AS date_move_last,
                     max(l.followup_date) AS date_followup,
                     max(l.followup_line_id) AS max_followup_id,
-                    sum(l.debit - l.credit) AS balance,
+                    sum(l.amount_residual) AS balance,
                     l.company_id as company_id
                 FROM
                     account_move_line l
                     LEFT JOIN account_account a ON (l.account_id = a.id)
                 WHERE
-                    a.account_type = 'asset_receivable' AND
-                    l.full_reconcile_id is NULL AND
+                    """ + FOLLOWUP_ACTIVE_SQL + """ AND
                     l.partner_id IS NOT NULL
                     GROUP BY
                     l.partner_id, l.company_id

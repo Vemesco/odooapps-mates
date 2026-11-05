@@ -1,6 +1,8 @@
 from odoo import api, fields, models
 from odoo import tools
 
+from ..models.account_move import FOLLOWUP_OPEN_SQL
+
 
 class AccountFollowupStat(models.Model):
     _name = "followup.stat"
@@ -18,6 +20,7 @@ class AccountFollowupStat(models.Model):
     debit = fields.Float('Debit', readonly=True)
     credit = fields.Float('Credit', readonly=True)
     company_id = fields.Many2one('res.company', 'Company', readonly=True)
+    blocked = fields.Boolean('No Follow-up', readonly=True)
 
     @api.model
     def init(self):
@@ -33,14 +36,14 @@ class AccountFollowupStat(models.Model):
                     max(l.followup_line_id) AS followup_id,
                     sum(l.debit) AS debit,
                     sum(l.credit) AS credit,
-                    sum(l.debit - l.credit) AS balance,
-                    l.company_id AS company_id
+                    sum(l.amount_residual) AS balance,
+                    l.company_id AS company_id,
+                    bool_or(COALESCE(l.blocked, false)) AS blocked
                 FROM
                     account_move_line l
                     LEFT JOIN account_account a ON (l.account_id = a.id)
                 WHERE
-                    a.account_type =  'asset_receivable' AND
-                    l.full_reconcile_id is NULL AND
+                    """ + FOLLOWUP_OPEN_SQL + """ AND
                     l.partner_id IS NOT NULL
                 GROUP BY
                     l.id, l.partner_id, l.company_id
