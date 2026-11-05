@@ -81,14 +81,16 @@
                           groups="account.group_account_invoice"
                           name="followup_tab">
 
-                        <div class="oe_right"
+                        <div class="oe_right d-flex flex-wrap gap-2 mb-3"
                              name="followup_button">
                             <button name="do_button_print" type="object"
+                                    class="btn btn-secondary"
                                     string="Print Overdue Payments"
                                     groups="account.group_account_user"
                                     help="Print overdue payments report independent of follow-up line"
                                     invisible="payment_amount_due &lt;= 0.0"/>
                             <button name="do_partner_mail" type="object"
+                                    class="btn btn-secondary"
                                     string="Send Overdue Email"
                                     groups="account.group_account_user"
                                     help="If not specified by the latest follow-up level, it will send from the default email template"
