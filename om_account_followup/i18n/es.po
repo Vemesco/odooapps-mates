@@ -417,6 +417,11 @@ msgid "Customer Payment Promise"
 msgstr "Promesa de pago del cliente"
 
 #. module: om_account_followup
+#: model_terms:ir.ui.view,arch_db:om_account_followup.customer_followup_search_view
+msgid "Customers with overdue amounts, unless their next action is planned for a later date"
+msgstr "Clientes con montos vencidos, salvo que su próxima acción esté programada para una fecha posterior"
+
+#. module: om_account_followup
 #: model:ir.model.constraint,message:om_account_followup.constraint_followup_line_days_uniq
 msgid "Days of the follow-up levels must be different"
 msgstr "Los días de los niveles de seguimiento deben ser diferentes"
