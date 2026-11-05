@@ -165,59 +165,55 @@ class ResPartner(models.Model):
         return unknown_mails
 
     def get_followup_table_html(self):
+        """Overdue items table for the follow-up emails (safe HTML)."""
         self.ensure_one()
         # render in the customer's language, whoever triggers the email
         lang = self.lang or self.commercial_partner_id.lang or self.env.lang
         self = self.with_context(lang=lang)
         partner = self.commercial_partner_id
-        followup_table = ''
-        if partner.unreconciled_aml_ids:
-            company = self.env.user.company_id
-            current_date = fields.Date.today()
-            report = self.env['report.om_account_followup.report_followup']
-            final_res = report._lines_get_with_partner(partner, company.id)
+        followup_table = Markup()
+        if not partner.unreconciled_aml_ids:
+            return followup_table
+        company = self.env.user.company_id
+        current_date = fields.Date.today()
+        report = self.env['report.om_account_followup.report_followup']
+        final_res = report._lines_get_with_partner(partner, company.id)
 
-            for currency_dict in final_res:
-                currency = currency_dict.get('line', [
-                    {'currency_id': company.currency_id}])[0]['currency_id']
-                followup_table += '''
-                <table border="2" width="100%">
-                <tr>
-                    <td>''' + _("Invoice Date") + '''</td>
-                    <td>''' + _("Description") + '''</td>
-                    <td>''' + _("Reference") + '''</td>
-                    <td>''' + _("Due Date") + '''</td>
-                    <td>''' + _("Amount") + " (%s)" % (
-                    currency.symbol) + '''</td>
-                </tr>
-                '''
-                for aml in currency_dict['line']:
-                    strbegin = "<TD>"
-                    strend = "</TD>"
-                    date = aml['date_maturity'] or aml['date']
-                    # date = datetime.strptime(date, "%d/%m/%Y").date()
-                    if date <= current_date and aml['balance'] > 0:
-                        strbegin = "<TD><B>"
-                        strend = "</B></TD>"
-                    followup_table += "<TR>" + strbegin + \
-                                      format_date(self.env, aml['date']) + \
-                                      strend + strbegin + \
-                                      str(escape(aml['name'] or '')) + \
-                                      strend + strbegin + \
-                                      str(escape(aml['ref'] or '')) + strend + \
-                                      strbegin + format_date(self.env, date) + \
-                                      strend + \
-                                      strbegin + formatLang(
-                                          self.env, aml['balance'],
-                                          currency_obj=currency) + \
-                                      strend + "</TR>"
-
-                total = formatLang(self.env, currency_dict['total'],
-                                   currency_obj=currency)
-                followup_table += '''<tr> </tr>
-                                </table>
-                                <center>''' + _(
-                    "Amount due") + ''' : %s </center>''' % (total)
+        th = Markup('<th style="padding: 6px 8px; border: 1px solid #d0d0d0; '
+                    'background-color: #f2f2f2; text-align: %s;">%s</th>')
+        td = Markup('<td style="padding: 6px 8px; border: 1px solid #d0d0d0; '
+                    'text-align: %s;%s">%s</td>')
+        for currency_dict in final_res:
+            currency = currency_dict['currency']
+            rows = Markup()
+            for aml in currency_dict['line']:
+                date = aml['date_maturity'] or aml['date']
+                bold = ' font-weight: bold;' if (
+                    date <= current_date and aml['balance'] > 0) else ''
+                rows += Markup('<tr>%s%s%s%s%s</tr>') % (
+                    td % ('left', bold, format_date(self.env, aml['date'])),
+                    td % ('left', bold, aml['name'] or ''),
+                    td % ('left', bold, aml['ref'] or ''),
+                    td % ('left', bold, format_date(self.env, date)),
+                    td % ('right', bold, formatLang(
+                        self.env, aml['balance'], currency_obj=currency)),
+                )
+            followup_table += Markup(
+                '<table style="width: 100%%; border-collapse: collapse; '
+                'margin-top: 12px; font-size: 12px;">'
+                '<thead><tr>%s%s%s%s%s</tr></thead><tbody>%s</tbody></table>'
+                '<p style="text-align: right; font-weight: bold; '
+                'margin: 8px 0 16px 0;">%s: %s</p>') % (
+                th % ('left', _("Invoice Date")),
+                th % ('left', _("Description")),
+                th % ('left', _("Reference")),
+                th % ('left', _("Due Date")),
+                th % ('right', _("Amount") + " (%s)" % currency.symbol),
+                rows,
+                _("Amount due"),
+                formatLang(self.env, currency_dict['total'],
+                           currency_obj=currency),
+            )
         return followup_table
 
     def write(self, vals):
