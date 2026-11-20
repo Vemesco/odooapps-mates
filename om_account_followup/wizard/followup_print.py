@@ -142,6 +142,17 @@ class FollowupPrint(models.TransientModel):
         data['followup_id'] = data['followup_id'][0]
 
         self.do_update_followup_level(to_update, partner_list, date)
+        # process_partners reads each customer's level from the
+        # followup.stat.by.partner SQL view: write the new levels to the
+        # database and drop cached view rows first, otherwise a customer
+        # reaching its first level gets no email and the others get the
+        # email of their previous level
+        self.env['account.move.line'].flush_model(
+            ['followup_line_id', 'followup_date'])
+        self.env['followup.stat.by.partner'].invalidate_model()
+        self.env['res.partner'].invalidate_model([
+            'latest_followup_level_id', 'latest_followup_level_id_without_lit',
+            'latest_followup_date'])
         restot_context = context.copy()
         restot = self.with_context(restot_context).process_partners(
             partner_list, data)
